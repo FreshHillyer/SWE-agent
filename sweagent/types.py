@@ -91,6 +91,8 @@ class AgentInfo(TypedDict, total=False):
     edited_files70: str
     # only if summarizer is used
     summarizer: dict
+    # xiaoO binary agent trace database copied out of the SWE-bench container
+    xiaoo_trace_db: str
     swe_agent_hash: str
     swe_agent_version: str
     swe_rex_version: str

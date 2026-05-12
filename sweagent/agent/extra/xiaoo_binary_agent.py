@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
 import os
 import shlex
@@ -108,6 +109,41 @@ Run relevant checks if practical. When finished, leave the working tree with onl
         submission = env.read_file("/root/model.patch", encoding="utf-8", errors="backslashreplace")
         return submission if submission.strip() else None
 
+    def _save_trace_db(self, env: SWEEnv, output_dir: Path) -> str | None:
+        if not self.config.trace_db_path:
+            return None
+
+        trace_db_path = self.config.trace_db_path
+        if trace_db_path.startswith("~/"):
+            trace_db_path = f"/root/{trace_db_path[2:]}"
+
+        encoded_path = "/root/xiaoo_trace.db.b64"
+        command = (
+            f"rm -f {shlex.quote(encoded_path)}; "
+            f"if [ -s {shlex.quote(trace_db_path)} ]; then "
+            f"base64 {shlex.quote(trace_db_path)} > {shlex.quote(encoded_path)}; "
+            "fi"
+        )
+        output = env.communicate(command, timeout=120, check="ignore")
+        try:
+            encoded = env.read_file(encoded_path, encoding="utf-8", errors="strict")
+        except Exception as e:
+            self.logger.warning("Failed to read xiaoO trace db from %s: %s\n%s", trace_db_path, e, output)
+            return None
+
+        if not encoded.strip():
+            self.logger.info("xiaoO trace db was not found or empty at %s", trace_db_path)
+            return None
+
+        trace_output_path = output_dir / self.config.trace_output_filename
+        try:
+            trace_output_path.write_bytes(base64.b64decode(encoded))
+        except Exception as e:
+            self.logger.warning("Failed to decode xiaoO trace db from %s: %s", trace_db_path, e)
+            return None
+
+        return str(trace_output_path)
+
     def get_trajectory_data(self) -> dict[str, Any]:
         return {
             "trajectory": self.trajectory,
@@ -142,6 +178,7 @@ Run relevant checks if practical. When finished, leave the working tree with onl
         execution_time = time.perf_counter() - t0
 
         submission = self._collect_submission(env, repo_root)
+        trace_db_host_path = self._save_trace_db(env, output_dir)
         exit_status = "submitted" if submission else "no_submission"
         self.info = AgentInfo(
             submission=submission,
@@ -152,6 +189,8 @@ Run relevant checks if practical. When finished, leave the working tree with onl
             swe_rex_version=get_rex_version(),
             swe_rex_hash=get_rex_commit_hash(),
         )
+        if trace_db_host_path is not None:
+            self.info["xiaoo_trace_db"] = trace_db_host_path
         step: TrajectoryStep = {
             "action": command,
             "observation": observation,
@@ -163,6 +202,7 @@ Run relevant checks if practical. When finished, leave the working tree with onl
             "extra_info": {
                 "binary_path": str(self.config.binary_path),
                 "container_binary_path": self.config.container_binary_path,
+                "xiaoo_trace_db": trace_db_host_path,
             },
         }
         self.trajectory = [step]

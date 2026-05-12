@@ -195,10 +195,12 @@ class XiaoOBinaryAgentConfig(BaseModel):
     provider: str | None = None
     model: str | None = None
     api_base: str | None = None
-    max_turns: int = 300
-    timeout: int = 36000
+    max_turns: int = 80
+    timeout: int = 3600
     debug: bool = False
     reasoning_effort: Literal["off", "high", "max"] | None = None
+    trace_db_path: str | None = "~/.xiaoo/traces.db"
+    trace_output_filename: str = "xiaoo_traces.db"
     setup_commands: list[str] = Field(default_factory=list)
     propagate_env_variables: list[str] = Field(
         default_factory=lambda: [
