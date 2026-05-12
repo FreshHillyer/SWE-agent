@@ -185,6 +185,37 @@ class ShellAgentConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class XiaoOBinaryAgentConfig(BaseModel):
+    name: str = "xiaoo_binary"
+    type: Literal["xiaoo_binary"] = "xiaoo_binary"
+    binary_path: Path = Path("/home/cz/xiaoO/target/release/xiaoo")
+    container_binary_path: str = "/usr/local/bin/xiaoo"
+    config_path: Path | None = Path("/root/.config/xiaoo/config.toml")
+    container_config_path: str = "/root/.config/xiaoo/config.toml"
+    provider: str | None = None
+    model: str | None = None
+    api_base: str | None = None
+    max_turns: int = 300
+    timeout: int = 36000
+    debug: bool = False
+    reasoning_effort: Literal["off", "high", "max"] | None = None
+    setup_commands: list[str] = Field(default_factory=list)
+    propagate_env_variables: list[str] = Field(
+        default_factory=lambda: [
+            "ANTHROPIC_API_KEY",
+            "OPENAI_API_KEY",
+            "OPENROUTER_API_KEY",
+            "DEEPSEEK_API_KEY",
+            "ZAI_API_KEY",
+            "ZHIPU_API_KEY",
+            "MINIMAX_API_KEY",
+            "XIAOO_CONFIG",
+        ]
+    )
+
+    model_config = ConfigDict(extra="forbid")
+
+
 class RetryAgentConfig(BaseModel):
     name: str = "retry_main"
     agent_configs: list[DefaultAgentConfig]
@@ -193,7 +224,10 @@ class RetryAgentConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
-AgentConfig = Annotated[DefaultAgentConfig | RetryAgentConfig | ShellAgentConfig, Field(union_mode="left_to_right")]
+AgentConfig = Annotated[
+    DefaultAgentConfig | RetryAgentConfig | ShellAgentConfig | XiaoOBinaryAgentConfig,
+    Field(union_mode="left_to_right"),
+]
 
 
 class _BlockedActionError(Exception):
@@ -249,6 +283,11 @@ def get_agent_from_config(config: AgentConfig) -> AbstractAgent:
         from sweagent.agent.extra.shell_agent import ShellAgent
 
         return ShellAgent.from_config(config)
+    elif config.type == "xiaoo_binary":
+        # Need to defer import to avoid circular dependency
+        from sweagent.agent.extra.xiaoo_binary_agent import XiaoOBinaryAgent
+
+        return XiaoOBinaryAgent.from_config(config)
     else:
         msg = f"Unknown agent type: {config.type}"
         raise ValueError(msg)

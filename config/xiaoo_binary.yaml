@@ -1,0 +1,17 @@
+agent:
+  type: xiaoo_binary
+  binary_path: /home/cz/xiaoO/target-musl-fresh/x86_64-unknown-linux-musl/release/xiaoo
+  config_path: /root/.config/xiaoo/config.toml
+  max_turns: 80
+  timeout: 3600
+  debug: false
+  propagate_env_variables:
+    - ANTHROPIC_API_KEY
+    - OPENAI_API_KEY
+    - OPENROUTER_API_KEY
+    - DEEPSEEK_API_KEY
+    - ZAI_API_KEY
+    - ZHIPU_API_KEY
+    - MINIMAX_API_KEY
+    - XIAOO_CONFIG
+  setup_commands: []
